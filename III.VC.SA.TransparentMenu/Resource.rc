@@ -1,0 +1,4 @@
+#define ID_BLURPS                            101
+#include <windows.h>
+
+ID_BLURPS RCDATA "blur.fxc"

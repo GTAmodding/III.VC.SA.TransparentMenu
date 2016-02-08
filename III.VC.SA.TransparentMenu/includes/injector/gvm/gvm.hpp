@@ -55,7 +55,7 @@ class game_version_manager
             #ifdef INJECTOR_GVM_PLUGIN_NAME
                 PluginName = INJECTOR_GVM_PLUGIN_NAME;
             #else
-                PluginName = "LODLights.asi";
+                PluginName = "III.VC.SA.TransparentMenu.asi";
             #endif
             
             this->Clear();
