@@ -1,4 +1,6 @@
 #define ID_BLURPS                            101
+#define IDR_POSTFXVS                         102
 #include <windows.h>
 
 ID_BLURPS RCDATA "blur.fxc"
+IDR_POSTFXVS RCDATA "postfxVS.cso"

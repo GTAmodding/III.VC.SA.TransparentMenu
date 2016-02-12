@@ -130,9 +130,9 @@
       <DelayLoadDLLs>rwd3d9.dll;</DelayLoadDLLs>
     </Link>
     <PostBuildEvent>
-      <Command>copy /y "$(TargetPath)" "Z:\gta_mods_test\cleangametest\cleo_test\Grand Theft Auto Vice City\III.VC.SA.TransparentMenu.asi"
-copy /y "$(TargetPath)" "Z:\gta_mods_test\cleangametest\cleo_test\GTAIII\III.VC.SA.TransparentMenu.asi"
-copy /y "$(TargetPath)" "Z:\gta_mods_test\cleangametest\cleo_test\GTA San Andreas\scripts\III.VC.SA.TransparentMenu.asi"</Command>
+      <Command>copy /y "$(TargetPath)" "Z:\WGTA\cleangametest\cleo_test\Grand Theft Auto Vice City\III.VC.SA.TransparentMenu.asi"
+copy /y "$(TargetPath)" "Z:\WGTA\cleangametest\cleo_test\GTAIII\III.VC.SA.TransparentMenu.asi"
+copy /y "$(TargetPath)" "Z:\WGTA\cleangametest\cleo_test\GTA San Andreas\scripts\III.VC.SA.TransparentMenu.asi"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">

@@ -15,14 +15,14 @@
 #pragma comment(lib, "delayimp")
 #pragma comment(lib, "rwd3d9")
 
-//#define SA 1
-
 int gtaversion = -1;
 HMODULE dllModule;
 
 #define ID_BLURPS                            101
+#define IDR_POSTFXVS                         102
 
 void *blurps = NULL;
+void *postfxVS = NULL;
 
 static uint32_t DefinedState_A = AddressByVersion<uint32_t>(0x526330, 0x526570, 0x526500, 0x57F9C0, 0x57F9E0, 0x57F7F0);
 WRAPPER void DefinedState(void) { VARJMP(DefinedState_A); }
@@ -84,8 +84,9 @@ void applyShader()
 
 
 WRAPPER RwBool RwD3D9CreatePixelShaderSA(const RwUInt32 *function, void **shader) { EAXJMP(0x7FACC0); }
-WRAPPER void _rwD3D9SetPixelShader(void *shader) { EAXJMP(0x7F9FF0); }
-WRAPPER RwRaster *RwRasterCreateSA(RwInt32 width, RwInt32 height, RwInt32 depth, RwInt32 flags) { EAXJMP(0x7FB230); }
+WRAPPER RwBool RwD3D9CreateVertexShaderSA(const RwUInt32 *function, void **shader) { EAXJMP(0x7FAC60); }
+WRAPPER RwBool RwD3D9CreateVertexDeclarationSA(const void *elements, void **vertexdeclaration) { EAXJMP(0x7FAA30); }
+void *quadVertexDecl;
 void setpsSA()
 {
 	if (blurps == NULL)
@@ -95,51 +96,132 @@ void setpsSA()
 		RwD3D9CreatePixelShaderSA(shader, &blurps);
 		assert(blurps);
 		FreeResource(shader);
+
+		resource = FindResource(dllModule, MAKEINTRESOURCE(IDR_POSTFXVS), RT_RCDATA);
+		shader = (RwUInt32*)LoadResource(dllModule, resource);
+		RwD3D9CreateVertexShaderSA(shader, &postfxVS);
+		FreeResource(shader);
+
+		static const D3DVERTEXELEMENT9 vertexElements[] =
+		{
+			{ 0, 0, D3DDECLTYPE_FLOAT4, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+			{ 0, 16, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
+			{ 0, 20, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+			{ 0, 28, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
+			D3DDECL_END()
+		};
+		RwD3D9CreateVertexDeclarationSA(vertexElements, &quadVertexDecl);
 	}
 }
 
-
-void **rwengine = *(void***)0x58FFC0;
-#define RwEngineInstance (*rwengine)
-#define RwRenderStateSetMacroSA(_state, _value)   \
-	(RWSRCGLOBAL(dOpenDevice).fpRenderStateSet(_state, _value))
-#define RwRenderStateSetSA(_state, _value) \
-		RwRenderStateSetMacroSA(_state, _value)
-
-WRAPPER RwCamera *RwCameraBeginUpdateSA(RwCamera *camera) { EAXJMP(0x7EE190); }
-WRAPPER RwCamera *RwCameraEndUpdateSA(RwCamera *camera) { EAXJMP(0x7EE180); }
-WRAPPER RwRaster *RwRasterPushContextSA(RwRaster *raster) { EAXJMP(0x7FB060); }
-WRAPPER RwRaster *RwRasterPopContextSA(void) { EAXJMP(0x7FB110); }
-WRAPPER RwRaster *RwRasterRenderFastSA(RwRaster *raster, RwInt32 x, RwInt32 y) { EAXJMP(0x7FAF50); }
-WRAPPER void DefinedStateSA(void) { EAXJMP(0x734650); }
-WRAPPER RwBool RwIm2DRenderIndexedPrimitiveSA(RwPrimitiveType, RwIm2DVertex*, RwInt32, RwImVertexIndex*, RwInt32) { EAXJMP(0x734EA0); }
-WRAPPER RwBool RwD3D9SetTextureSA(RwTexture*, RwUInt32) { EAXJMP(0x7FDE70); }
-WRAPPER void ImmediateModeRenderStatesStore(void) { EAXJMP(0x700CC0); }
-WRAPPER void ImmediateModeRenderStatesSet(void) { EAXJMP(0x700D70); }
-WRAPPER void ImmediateModeRenderStatesReStore(void) { EAXJMP(0x700E00); }
-WRAPPER void DrawQuad(float x1, float y1, float x2, float y2, char r, char g, char b, char alpha, RwRaster *ras) { EAXJMP(0x700EC0); }
+struct RsGlobalType
+{
+	DWORD			AppName;
+	DWORD			MaximumWidth;
+	DWORD			MaximumHeight;
+	/*snip*/
+};
+struct QuadVertex
+{
+	RwReal      x, y, z;
+	RwReal      rhw;
+	RwUInt32    emissiveColor;
+	RwReal      u, v;
+	RwReal      u1, v1;
+};
+RsGlobalType *RsGlobal = (RsGlobalType*)0xC17040;
+RwRaster *&pRasterFrontBuffer = *(RwRaster**)0xC402D8;
+static QuadVertex quadVertices[4];
+static RwImVertexIndex* quadIndices = (RwImVertexIndex*)0x8D5174;
+WRAPPER RwBool RwD3D9SetTextureSA(RwTexture *texture, RwUInt32 stage) { EAXJMP(0x7FDE70); }
+WRAPPER void RwD3D9SetVertexDeclarationSA(void *vertexDeclaration) { EAXJMP(0x7F9F70); }
+WRAPPER void RwD3D9SetVertexShaderSA(void *shader) { EAXJMP(0x7F9FB0); }
+WRAPPER void RwD3D9SetPixelShaderSA(void *shader) { EAXJMP(0x7F9FF0); }
+WRAPPER void RwD3D9SetRenderStateSA(RwUInt32 state, RwUInt32 value) { EAXJMP(0x7FC2D0); }
+WRAPPER void RwD3D9DrawIndexedPrimitive(RwUInt32 primitiveType, RwInt32 baseVertexIndex, RwUInt32 minIndex,
+	RwUInt32 numVertices, RwUInt32 startIndex, RwUInt32 primitiveCount) {
+	EAXJMP(0x7FA320);
+}
+WRAPPER void RwD3D9DrawIndexedPrimitiveUP(RwUInt32 primitiveType, RwUInt32 minIndex, RwUInt32 numVertices, RwUInt32 primitiveCount,
+	const void *indexData, const void *vertexStreamZeroData, RwUInt32 VertexStreamZeroStride) {
+	EAXJMP(0x7FA1F0);
+}
 void applyShaderSA()
 {
-	RwCamera *&Camera = *(RwCamera**)0xC1703C;
-	RwRaster* camraster = RwCameraGetRaster(Camera);
+	float rasterWidth = (float)RwRasterGetWidth(pRasterFrontBuffer);
+	float rasterHeight = (float)RwRasterGetHeight(pRasterFrontBuffer);
+	float halfU = 0.5f / rasterWidth;
+	float halfV = 0.5f / rasterHeight;
+	float uMax = RsGlobal->MaximumWidth / rasterWidth;
+	float vMax = RsGlobal->MaximumHeight / rasterHeight;
+	int i = 0;
 
-	RwRasterPushContextSA(camraster);
-	RwRasterRenderFastSA(Camera->frameBuffer, 0, 0);
-	RwRasterPopContextSA();
+	float leftOff, rightOff, topOff, bottomOff;
+	float scale = RsGlobal->MaximumWidth / 640.0f;
+	leftOff = 8.0f*scale / 16.0f / rasterWidth;
+	rightOff = 8.0f*scale / 16.0f / rasterWidth;
+	topOff = 8.0f*scale / 16.0f / rasterHeight;
+	bottomOff = 8.0f*scale / 16.0f / rasterHeight;
 
-	DefinedStateSA();
+	quadVertices[i].x = 1.0f;
+	quadVertices[i].y = -1.0f;
+	quadVertices[i].z = 0.0f;
+	quadVertices[i].rhw = 1.0f;
+	quadVertices[i].u = uMax + halfU;
+	quadVertices[i].v = vMax + halfV;
+	quadVertices[i].u1 = quadVertices[i].u + rightOff;
+	quadVertices[i].v1 = quadVertices[i].v + bottomOff;
+	i++;
 
-	RwRenderStateSetSA(rwRENDERSTATETEXTUREADDRESS, (void*)rwTEXTUREADDRESSWRAP);
-	RwRenderStateSetSA(rwRENDERSTATETEXTUREFILTER, (void*)rwFILTERNEAREST);
-	RwRenderStateSetSA(rwRENDERSTATESRCBLEND, (void*)D3DBLEND_DESTCOLOR);
-	RwRenderStateSetSA(rwRENDERSTATEDESTBLEND, (void*)D3DBLEND_SRCALPHA);
-	setpsSA();
-	_rwD3D9SetPixelShader(blurps);
-	DrawQuad(0, 0, RwRasterGetWidth(camraster) / 2, RwRasterGetHeight(camraster), 0xFF, 0xFF, 0xFF, 0xFF, camraster);
-	_rwD3D9SetPixelShader(NULL);
-	DefinedStateSA();
-	RwD3D9SetTextureSA(NULL, 1);
+	quadVertices[i].x = -1.0f;
+	quadVertices[i].y = -1.0f;
+	quadVertices[i].z = 0.0f;
+	quadVertices[i].rhw = 1.0f;
+	quadVertices[i].u = 0.0f + halfU;
+	quadVertices[i].v = vMax + halfV;
+	quadVertices[i].u1 = quadVertices[i].u + leftOff;
+	quadVertices[i].v1 = quadVertices[i].v + bottomOff;
+	i++;
+
+	quadVertices[i].x = -1.0f;
+	quadVertices[i].y = 1.0f;
+	quadVertices[i].z = 0.0f;
+	quadVertices[i].rhw = 1.0f;
+	quadVertices[i].u = 0.0f + halfU;
+	quadVertices[i].v = 0.0f + halfV;
+	quadVertices[i].u1 = quadVertices[i].u + leftOff;
+	quadVertices[i].v1 = quadVertices[i].v + topOff;
+	i++;
+
+	quadVertices[i].x = 1.0f;
+	quadVertices[i].y = 1.0f;
+	quadVertices[i].z = 0.0f;
+	quadVertices[i].rhw = 1.0f;
+	quadVertices[i].u = uMax + halfU;
+	quadVertices[i].v = 0.0f + halfV;
+	quadVertices[i].u1 = quadVertices[i].u + rightOff;
+	quadVertices[i].v1 = quadVertices[i].v + topOff;
+
+	RwTexture tempTexture;
+	tempTexture.raster = pRasterFrontBuffer;
+	RwD3D9SetTextureSA(&tempTexture, 0);
+
+	RwD3D9SetVertexDeclarationSA(quadVertexDecl);
+
+	RwD3D9SetVertexShaderSA(postfxVS);
+	RwD3D9SetPixelShaderSA(blurps);
+
+
+	RwD3D9SetRenderStateSA(D3DRS_ALPHABLENDENABLE, 0);
+	RwD3D9SetRenderStateSA(D3DRS_CULLMODE, D3DCULL_NONE);
+	RwD3D9DrawIndexedPrimitiveUP(D3DPT_TRIANGLELIST, 0, 6, 2, quadIndices, quadVertices, sizeof(QuadVertex));
+
+	RwD3D9SetRenderStateSA(D3DRS_ALPHABLENDENABLE, 1);
+
+	RwD3D9SetVertexShaderSA(NULL);
+	RwD3D9SetPixelShaderSA(NULL);
 }
+
 
 template<uintptr_t addr>
 void CHudDrawHook()
@@ -166,13 +248,20 @@ void CHudDrawHookSA()
 	{
 		if (*(bool*)0xBA67A4 == 0) //bMenuVisible
 		{
+			injector::WriteMemory(0x53E288, 0x832050FF, true);
 			funcCHudDraw();
 		}
-		else
-		{
-			applyShaderSA();
-		}
-		return;
+	});
+}
+
+template<uintptr_t addr>
+void CSprite2dDrawRectHookSA()
+{
+	using func_hook = injector::function_hooker<addr, void(float *, unsigned int)>;
+	injector::make_static_hook<func_hook>([](func_hook::func_type funcCSprite2dDrawRect, float *coords, unsigned int rgbaColor)
+	{
+		funcCSprite2dDrawRect(coords, rgbaColor);
+		applyShaderSA();
 	});
 }
 
@@ -194,15 +283,18 @@ void CRendererConstructRenderListHook()
 }
 
 template<uintptr_t addr>
-void RsMouseSetPosHook()
+void RsMouseSetPosHookSA()
 {
 	using func_hook = injector::function_hooker<addr, void(RwV2d*)>;
 	injector::make_static_hook<func_hook>([](func_hook::func_type RsMouseSetPos, RwV2d *pos)
 	{
-		if (*(bool*)0x8F5AE9 == 0) //bMenuVisible
+		if (*(bool*)0xBA67A4 == 0) //bMenuVisible
 		{
+			
 			RsMouseSetPos(pos);
 		}
+		else
+			injector::WriteMemory(0x53E288, 0x83909090, true);
 		return;
 	});
 }
@@ -219,11 +311,13 @@ void patchIII()
 
 		injector::WriteMemory<char>(0x47A635 + 0x1, 0x00, true); injector::MakeNOP(0x47A63E, 2, true);
 		injector::WriteMemory<char>(0x47A7B3 + 0x1, 0x00, true);
-		injector::WriteMemory<char>(0x47A829, 0x90, true); injector::WriteMemory(0x47A829 + 0x1, 0x000000B8, true);
+		injector::WriteMemory<unsigned char>(0x47A829, 0x90u, true); injector::WriteMemory(0x47A829 + 0x1, 0x000000B8, true);
 		injector::WriteMemory<char>(0x47A8A7 + 0x1, 0x00, true);
 
 		CRendererConstructRenderListHook<0x48E539>();
 		CHudDrawHook<(0x48E420)>();
+
+		setps();
 	});
 }
 
@@ -252,6 +346,8 @@ void patchVC()
 		injector::WriteMemory<char>(0x4A35A2 + 0x1, 0x00, true);
 
 		CHudDrawHook<(0x4A64D0)>();
+
+		setps();
 	});
 }
 
@@ -263,11 +359,16 @@ void patchSA()
 
 		injector::MakeNOP(0x53E9B3, 6, true);
 
-		injector::WriteMemory<char>(0x57B982 + 0x1, 0x00, true);
+		//injector::WriteMemory<char>(0x57B982 + 0x1, 0x00, true);
 
-		RsMouseSetPosHook<0x53E9F1>();
+		RsMouseSetPosHookSA<0x53E9F1>();
 		CHudDrawHookSA<(0x53E4FF)>();
-		//53E288 menu flash
+		CSprite2dDrawRectHookSA<(0x57B9BB)>(); //fastloader compatibility
+		injector::MakeNOP(0x576E23, 5, true);
+		injector::MakeNOP(0x576E38, 5, true);// menu flash
+		injector::WriteMemory<char>(0x57B9F5, 0x50, true); //frontend
+
+		setpsSA();
 	});
 }
 
@@ -278,21 +379,18 @@ void Init()
 	
 	if (gvm.IsIII())
 	{
-		setps();
 		patchIII();
 	}
 	else
 	{
 		if (gvm.IsVC())
 		{
-			setps();
 			patchVC();
 		}
 		else
 		{
 			if (gvm.IsSA())
 			{
-				//setpsSA();
 				patchSA();
 			}
 		}
