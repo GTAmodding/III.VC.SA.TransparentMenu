@@ -271,13 +271,13 @@ void CRendererConstructRenderListHook()
 	using func_hook = injector::function_hooker<addr, void()>;
 	injector::make_static_hook<func_hook>([](func_hook::func_type CRendererConstructRenderList)
 	{
-		if (*(bool*)0x8F5AE9 == 0) //bMenuVisible
+		if (isVC() ? *(bool*)0x869668 == 0 : *(bool*)0x8F5AE9 == 0) //bMenuVisible
 		{
 			CRendererConstructRenderList();
 		}
 		else
 		{
-			injector::cstd<void()>::call<0x4A76B0>();
+			isVC() ? injector::cstd<void()>::call<0x4CA260>() : injector::cstd<void()>::call<0x4A76B0>();
 		}
 	});
 }
@@ -345,6 +345,7 @@ void patchVC()
 		injector::WriteMemory<char>(0x4A2C60 + 0x1, 0x00, true); injector::MakeNOP(0x4A2C5E, 2, true);
 		injector::WriteMemory<char>(0x4A35A2 + 0x1, 0x00, true);
 
+		CRendererConstructRenderListHook<0x4A5E45>();
 		CHudDrawHook<(0x4A64D0)>();
 
 		setps();
