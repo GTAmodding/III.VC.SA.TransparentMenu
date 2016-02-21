@@ -319,6 +319,11 @@ void patchIII()
 
 		setps();
 	});
+
+	static int nForceBlur = 1;
+	injector::WriteMemory(0x50AE87, &nForceBlur, true);
+	injector::WriteMemory(0x50B072, &nForceBlur, true);
+	injector::WriteMemory(0x50B079, &nForceBlur, true);
 }
 
 void patchVC()
@@ -340,7 +345,6 @@ void patchVC()
 		injector::MakeNOP(0x4A212D + 0xE95, 5, true); //        CSprite2d::Draw2DPolygon(float, float, float, float, float, float, float, float, CRGBA const&)
 		injector::MakeNOP(0x4A212D + 0xFA4, 5, true); //        CSprite2d::Draw2DPolygon(float, float, float, float, float, float, float, float, CRGBA const&)
 
-
 		injector::WriteMemory<char>(0x4A26D8 + 0x1, 0x00, true); injector::MakeNOP(0x4A26D6, 2, true);
 		injector::WriteMemory<char>(0x4A2C60 + 0x1, 0x00, true); injector::MakeNOP(0x4A2C5E, 2, true);
 		injector::WriteMemory<char>(0x4A35A2 + 0x1, 0x00, true);
@@ -350,6 +354,11 @@ void patchVC()
 
 		setps();
 	});
+
+	static int nForceBlur = 1;
+	injector::WriteMemory(0x55CE81, &nForceBlur, true);
+	injector::WriteMemory(0x55D062, &nForceBlur, true);
+	injector::WriteMemory(0x55D069, &nForceBlur, true);
 }
 
 void patchSA()
