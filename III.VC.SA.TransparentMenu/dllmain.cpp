@@ -299,6 +299,11 @@ void RsMouseSetPosHookSA()
 	});
 }
 
+void CSprite2dDrawHook()
+{
+	__asm ret 8
+}
+
 void patchIII()
 {
 	injector::MakeInline<0x582E71, 0x582E78>([](injector::reg_pack&)
@@ -309,10 +314,13 @@ void patchIII()
 
 		injector::MakeNOP(0x48E520, 6, true);
 
-		injector::WriteMemory<char>(0x47A635 + 0x1, 0x00, true); injector::MakeNOP(0x47A63E, 2, true);
-		injector::WriteMemory<char>(0x47A7B3 + 0x1, 0x00, true);
-		injector::WriteMemory<unsigned char>(0x47A829, 0x90u, true); injector::WriteMemory(0x47A829 + 0x1, 0x000000B8, true);
+		//gta3 doesn't care about alpha without cleo, so noping draw calls is necessary just in case
+		injector::WriteMemory<char>(0x47A635 + 0x1, 0x00, true); injector::MakeNOP(0x47A63E, 2, true); injector::MakeCALL(0x47A695, CSprite2dDrawHook, true);
+		injector::WriteMemory<char>(0x47A7B3 + 0x1, 0x00, true); injector::MakeCALL(0x47A812, CSprite2dDrawHook, true);
+		injector::WriteMemory<unsigned char>(0x47A829, 0x90u, true); injector::WriteMemory(0x47A829 + 0x1, 0x000000B8, true); injector::MakeCALL(0x47A891, CSprite2dDrawHook, true);
+
 		injector::WriteMemory<char>(0x47A8A7 + 0x1, 0x00, true);
+		injector::MakeCALL(0x47A904, CSprite2dDrawHook, true);
 
 		CRendererConstructRenderListHook<0x48E539>();
 		CHudDrawHook<(0x48E420)>();
