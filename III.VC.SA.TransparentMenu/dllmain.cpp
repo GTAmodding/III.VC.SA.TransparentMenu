@@ -324,6 +324,8 @@ void patchIII()
 	injector::WriteMemory(0x50AE87, &nForceBlur, true);
 	injector::WriteMemory(0x50B072, &nForceBlur, true);
 	injector::WriteMemory(0x50B079, &nForceBlur, true);
+
+	LoadLibrary("rwd3d9");
 }
 
 void patchVC()
@@ -359,6 +361,8 @@ void patchVC()
 	injector::WriteMemory(0x55CE81, &nForceBlur, true);
 	injector::WriteMemory(0x55D062, &nForceBlur, true);
 	injector::WriteMemory(0x55D069, &nForceBlur, true);
+
+	LoadLibrary("rwd3d9");
 }
 
 void patchSA()
