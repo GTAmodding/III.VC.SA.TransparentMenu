@@ -332,6 +332,7 @@ void patchIII()
 	injector::WriteMemory(0x50AE87, &nForceBlur, true);
 	injector::WriteMemory(0x50B072, &nForceBlur, true);
 	injector::WriteMemory(0x50B079, &nForceBlur, true);
+	injector::MakeNOP(0x48B000, 5, true);
 
 	LoadLibrary("rwd3d9");
 }
@@ -369,6 +370,11 @@ void patchVC()
 	injector::WriteMemory(0x55CE81, &nForceBlur, true);
 	injector::WriteMemory(0x55D062, &nForceBlur, true);
 	injector::WriteMemory(0x55D069, &nForceBlur, true);
+	injector::MakeNOP(0x498F48, 5, true);
+
+	//CMBlur::AddRenderFx Type 4
+	injector::MakeNOP(0x560FF9, 5, true);
+	injector::MakeNOP(0x561259, 5, true);
 
 	LoadLibrary("rwd3d9");
 }
